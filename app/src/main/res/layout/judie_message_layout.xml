@@ -7,14 +7,13 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/botMsgLayout"
-        android:layout_width="396dp"
-        android:layout_height="88dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:layout_gravity="start|center_vertical"
         android:layout_marginStart="8dp"
         android:layout_marginTop="4dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="4dp"
-        android:gravity="start|center_vertical"
         android:orientation="vertical">
 
 
@@ -23,7 +22,6 @@
             android:layout_width="44dp"
             android:layout_height="36dp"
             android:layout_marginStart="5dp"
-            android:layout_marginTop="16dp"
             android:layout_marginBottom="36dp"
             android:cropToPadding="false"
             android:elevation="10dp"
@@ -52,9 +50,10 @@
             android:typeface="monospace"
             app:autoSizeTextType="uniform"
             app:fontFamily="@font/childlike"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@+id/judie_logo"
-            tools:ignore="MissingConstraints"
-            tools:layout_editor_absoluteY="16dp" />
+            app:layout_constraintTop_toTopOf="parent"
+            tools:ignore="MissingConstraints" />
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>

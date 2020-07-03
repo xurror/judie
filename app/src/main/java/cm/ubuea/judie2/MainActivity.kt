@@ -2,7 +2,6 @@ package cm.ubuea.judie2
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -17,23 +16,28 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.*
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.MutableLiveData
-import com.bhargavms.dotloader.DotLoader
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
+import com.google.api.gax.core.FixedCredentialsProvider
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.auth.oauth2.ServiceAccountCredentials
 import com.google.cloud.dialogflow.v2.*
 import kotlinx.android.synthetic.main.activity_main.*
 import java.util.*
+import kotlin.properties.Delegates
+
+const val USER=0
+const val BOT=1
+const val SPEECH_INPUT=2
 
 class MainActivity : AppCompatActivity() {
 
@@ -42,10 +46,9 @@ class MainActivity : AppCompatActivity() {
         val isListening: Boolean,
         val error: String?
     )
-
     private val ALARM_URI = Uri.parse("android-app://com.myclockapp/set_alarm_page")
+    private val uuid = UUID.randomUUID().toString()
     private val TAG = "MainActivity"
-
     private val generalHelp = """
          - say MAIL to go to mail module\n
          - say PHONE to go to phone module\n
@@ -72,36 +75,51 @@ class MainActivity : AppCompatActivity() {
      """.trimIndent()
 
     private lateinit var judie: TextToSpeech
-    private lateinit var mic: FloatingActionButton
-    private lateinit var dotLoader: DotLoader
-    private lateinit var input_msg: TextInputEditText
-
-    private var viewState: MutableLiveData<ViewState>? = null
+    private lateinit var sendMsgBtn: FloatingActionButton
+    private lateinit var inputMsg: TextInputEditText
+    private var client: SessionsClient? = null
+    private var session: SessionName? = null
+    private var recording = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(findViewById(R.id.toolbar))
 
-        mic = findViewById<FloatingActionButton>(R.id.mic)
-        input_msg = findViewById(R.id.input_msg)
-        dotLoader = findViewById(R.id.text_dot_loader)
+        sendMsgBtn = findViewById<FloatingActionButton>(R.id.send_btn)
+        inputMsg = findViewById(R.id.input_msg)
 
         initAsisstantVoice()
         checkPermission()
-        getVoiceMessage()
+        sendVoiceMessage()
 
-//        val preferences = PreferenceManager.getDefaultSharedPreferences(baseContext)
-//        welcome = "Hi " + preferences.getString(Needs.NAME, " ") + " what can i do for u today ? "
+        sendMsgBtn.setOnClickListener {
+            if (!recording) {
+                sendMessage()
+            }
+        }
 
-//        findViewById<FloatingActionButton>(R.id.mic).setOnClickListener {
-//          view -> Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                  .setAction("Action", null).show()
-//            promptSpeechInput()
+        inputMsg.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(p0: Editable?) {
+            }
+
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            }
+
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+                if (inputMsg.text.toString() == "") {
+                    recording = true
+                    sendMsgBtn.setImageResource(R.drawable.ic_mic)
+                } else {
+                    recording = false
+                    sendMsgBtn.setImageResource(R.drawable.ic_send)
+                }
+            }
+        })
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun getVoiceMessage() {
+    private fun sendVoiceMessage() {
 
         val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         val recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -112,7 +130,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         speechRecognizer.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(bundle: Bundle) {}
+            @SuppressLint("SetTextI18n")
+            override fun onReadyForSpeech(bundle: Bundle) {
+                inputMsg.setText("Listening....")
+            }
 
             override fun onBeginningOfSpeech() {}
 
@@ -120,18 +141,24 @@ class MainActivity : AppCompatActivity() {
 
             override fun onBufferReceived(bytes: ByteArray) {}
 
-            override fun onEndOfSpeech() {}
+            override fun onEndOfSpeech() {
+                inputMsg.setText("")
+            }
 
-            override fun onError(i: Int) {}
+            override fun onError(i: Int) {
+                Log.i(TAG, "An Error Occurred")
+                inputMsg.setText("")
+            }
 
             override fun onResults(bundle: Bundle) {
                 //getting all the matches
                 val matches = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (matches != null) {
-                    var msg = matches.get(0)
-                    input_msg.setText(matches.get(0))
-                    appendText(msg)
-                    Log.i(TAG, matches.get(0))
+                    val msg = matches.get(0)
+                    inputMsg.setText(msg)
+                    appendText(msg, USER)
+                    inputMsg.setText("")
+                    Log.i(TAG, msg)
                 }
             }
 
@@ -140,17 +167,15 @@ class MainActivity : AppCompatActivity() {
             override fun onEvent(i: Int, bundle: Bundle) {}
         })
 
-        mic.setOnTouchListener(View.OnTouchListener { _, motionEvent ->
+        sendMsgBtn.setOnTouchListener(View.OnTouchListener { _, motionEvent ->
             when (motionEvent.action) {
                 MotionEvent.ACTION_UP -> {
                     speechRecognizer.stopListening()
-                    dotLoader.visibility = View.INVISIBLE
                 }
 
                 MotionEvent.ACTION_DOWN -> {
                     vibrate()
                     speechRecognizer.startListening(recognizerIntent)
-                    dotLoader.visibility = View.VISIBLE
                 }
             }
             false
@@ -195,57 +220,56 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-//    private fun initAsisstant() {
-//        try {
-//            val stream = resources.openRawResource(R.raw.asistan)
-//            val credentials = GoogleCredentials.fromStream(stream)
-//            val projectId = (credentials as ServiceAccountCredentials).projectId
-//
-//            val settingsBuilder = SessionsSettings.newBuilder()
-//            val sessionsSettings = settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(credentials)).build()
-//            client = SessionsClient.create(sessionsSettings)
-//            session = SessionName.of(projectId, uuid)
-//        } catch (e: Exception) {
-//            e.printStackTrace()
-//        }
-//    }
+    private fun initAsisstant() {
+        try {
+            val stream = resources.openRawResource(R.raw.judie)
+            val credentials = GoogleCredentials.fromStream(stream)
+            val projectId = (credentials as ServiceAccountCredentials).projectId
 
-
-    private fun sendMessage() {
-        val msg = input_msg.text.toString()
-        if (msg.trim { it <= ' ' }.isEmpty()) {
-            Toast.makeText(this@MainActivity, "Message sent", Toast.LENGTH_LONG).show()
-        } else {
-//            appendText(msg, USER)
-            appendText(msg)
-            input_msg.setText("")
-
-//            // Java V2
-//            val queryInput = QueryInput.newBuilder().setText(TextInput.newBuilder().setText(msg).setLanguageCode("tr")).build()
-//            RequestTask(this@MainActivity, session!!, client!!, queryInput).execute()
+            val settingsBuilder = SessionsSettings.newBuilder()
+            val sessionsSettings = settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(credentials)).build()
+            client = SessionsClient.create(sessionsSettings)
+            session = SessionName.of(projectId, uuid)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
-//    private fun appendText(message: String, type: Int) {
-    private fun appendText(message: String) {
-        val layout: FrameLayout = appendUserText()
-//        when (type) {
-//            USER -> layout = appendUserText()
-//            BOT -> layout = appendBotText()
-//            else -> layout = appendBotText()
-//        }
+
+    private fun sendMessage() {
+        val msg = inputMsg.text.toString()
+        if (msg.trim { it <= ' ' }.isEmpty()) {
+            Toast.makeText(this@MainActivity, "Message sent", Toast.LENGTH_LONG).show()
+        } else {
+            appendText(msg, USER)
+            inputMsg.setText("")
+
+            // Java V2
+            val queryInput = QueryInput.newBuilder().setText(TextInput.newBuilder().setText(msg).setLanguageCode("tr")).build()
+            RequestTask(this@MainActivity, session!!, client!!, queryInput).execute()
+        }
+    }
+
+    private fun appendText(message: String, type: Int) {
+//    private fun appendText(message: String) {
+        val layout: FrameLayout
+        when (type) {
+            USER -> layout = appendUserText()
+            BOT -> layout = appendBotText()
+            else -> layout = appendBotText()
+        }
         layout.isFocusableInTouchMode = true
         linear_chat.addView(layout)
-        val tv = layout.findViewById<MaterialTextView>(R.id.user_logo)
+        val tv = layout.findViewById<MaterialTextView>(R.id.chat_msg)
         tv.setText(message)
-//        Util.hideKeyboard(this)
+        Util.hideKeyboard(this)
         layout.requestFocus()
-        input_msg.requestFocus() // change focus back to edit text to continue typing
+        inputMsg.requestFocus() // change focus back to edit text to continue typing
 
-//        @Suppress("DEPRECATION")
-//        if(type != USER) {
-//            judie.speak(message,TextToSpeech. QUEUE_FLUSH,null)
-//        }
+        if(type != USER) {
+            @Suppress("DEPRECATION")
+            judie.speak(message,TextToSpeech. QUEUE_FLUSH,null)
+        }
     }
 
 
@@ -259,23 +283,23 @@ class MainActivity : AppCompatActivity() {
         return inflater.inflate(R.layout.judie_message_layout, null) as FrameLayout
     }
 
-//    fun onResult(response: DetectIntentResponse?) {
-//        try {
-//            if (response != null) {
-//                var botReply:String=""
-//                if(response.queryResult.fulfillmentText==" ")
-//                    botReply= response.queryResult.fulfillmentMessagesList[0].text.textList[0].toString()
-//                else
-//                    botReply= response.queryResult.fulfillmentText
-//
-//                appendText(botReply, BOT)
-//            } else {
-//                appendText(getString(R.string.anlasilmadi), BOT)
-//            }
-//        }catch (e:Exception){
-//            appendText(getString(R.string.anlasilmadi), BOT)
-//        }
-//    }
+    fun onResult(response: DetectIntentResponse?) {
+        try {
+            if (response != null) {
+                var botReply:String=""
+                if(response.queryResult.fulfillmentText==" ")
+                    botReply= response.queryResult.fulfillmentMessagesList[0].text.textList[0].toString()
+                else
+                    botReply= response.queryResult.fulfillmentText
+
+                appendText(botReply, BOT)
+            } else {
+                appendText(getString(R.string.input_label), BOT)
+            }
+        }catch (e:Exception){
+            appendText(getString(R.string.input_label), BOT)
+        }
+    }
 
     override fun onPause() {
         super.onPause()
