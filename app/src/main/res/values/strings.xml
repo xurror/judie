@@ -1,0 +1,60 @@
+<resources>
+    <string name="app_name">Judie2</string>
+    <string name="bot_name">Judie</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_help">Help</string>
+    <string name="title_help">Help</string>
+    <string name="input_label">Talk to me</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="judie_message">Hi, I am Judie, your personal assistant</string>
+    <string name="user_message">Hi, I am someone, your personal assistant</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="speech_not_supported">Sorry! Your device doesn\'t support speech input</string>
+
+    <string name="hello_first_fragment">Hello first fragment</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+
+    // Login Activity
+    <string name="title_activity_login">Sign in and meet Judie</string>
+    <string name="prompt_email">Email</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in">Sign in or register</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="invalid_username">Not a valid username</string>
+    <string name="invalid_password">Password must be >5 characters</string>
+    <string name="login_failed">"Login failed"</string>
+
+    //Splash Activity
+    <string name="welcome"> Judie</string>
+    <string name="voice_ass">Your Personnel Voice Assistant</string>
+
+    <string name="input_text">Your text is here</string>
+
+    <array name="dot_colors">
+        <item>#000000</item>
+        <item>#FFFF9800</item>
+        <item>#FF00BCD4</item>
+    </array>
+    <string name="title_activity_settings">SettingsActivity</string>
+
+    <!-- Preference Titles -->
+    <string name="messages_header">Messages</string>
+    <string name="sync_header">Sync</string>
+
+    <!-- Messages Preferences -->
+    <string name="signature_title">Your signature</string>
+    <string name="reply_title">Default reply action</string>
+
+    <!-- Sync Preferences -->
+    <string name="sync_title">Sync email periodically</string>
+    <string name="attachment_title">Download incoming attachments</string>
+    <string name="attachment_summary_on">Automatically download attachments for incoming emails
+    </string>
+    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+</resources>
