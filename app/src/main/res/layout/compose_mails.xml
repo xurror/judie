@@ -62,7 +62,7 @@
             android:layout_centerHorizontal="true"
             android:layout_gravity="center"
             android:layout_marginTop="10sp"
-            android:background="@drawable/custom_button"
+            android:background="@color/colorAccent"
             android:fontFamily="sans-serif"
             android:text="@string/_send"
             android:textColor="#FFFFFF"

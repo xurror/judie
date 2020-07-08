@@ -42,7 +42,7 @@
             android:layout_alignParentBottom="true"
             android:layout_centerHorizontal="true"
             android:layout_marginBottom="40dp"
-            android:background="@drawable/custom_button"
+            android:background="@color/colorAccent"
             android:fontFamily="sans-serif"
             android:padding="10dp"
             android:text="@string/buttonhelp"
